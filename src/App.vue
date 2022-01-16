@@ -9,35 +9,31 @@
       </div>
       <div class="btns-box">
         <div class="btn">
-          <el-button class="btn-view" type="primary" icon="el-icon-upload"
-            >文件一上传</el-button
+          <el-upload
+            action="/api/upload"
+            :on-success="handleFileSuccess"
+            :before-upload="beforeUpload"
+            :limit="1"
+            :on-exceed="handleExceed"
           >
-          <input
-            type="file"
-            class="file-one"
-            @change="changeFileFirst"
-            @click="clickFirstFile"
-          />
-          <div class="file-view" v-if="firstFileName">
-            <span class="file-name">{{ firstFileName }}</span>
-            <i class="el-icon-delete" @click="deleteFile('first')"></i>
-          </div>
+            <el-button slot="trigger" size="small" type="primary"
+              >上传文件一</el-button
+            >
+          </el-upload>
         </div>
 
         <div class="btn">
-          <el-button class="btn-view" type="success" icon="el-icon-upload"
-            >文件二上传</el-button
+          <el-upload
+            action="/api/upload"
+            :on-success="handleFileSuccessSec"
+            :limit="1"
+            :before-upload="beforeUpload"
+            :on-exceed="handleExceed"
           >
-          <input
-            type="file"
-            class="file-one"
-            @change="changeFileSecond"
-            @click="clickSecondFile"
-          />
-          <div class="file-view" v-if="secondFileName">
-            <span class="file-name">{{ secondFileName }}</span>
-            <i class="el-icon-delete" @click="deleteFile('second')"></i>
-          </div>
+            <el-button slot="trigger" size="small" type="primary"
+              >上传文件二</el-button
+            >
+          </el-upload>
         </div>
         <div class="btn btn-right">
           <el-button
@@ -67,133 +63,55 @@
 </template>
 
 <script>
+import * as API from "./api/index";
 export default {
   name: "App",
   data() {
     return {
-      isComparing: false,
-      compareResult: "",
+      isComparing: false, //表示开始对比按钮是否在loading中
+      compareResult: "", //对比结果
+      fullscreenLoading: false, //遮罩层是否显示
       firstFileName: "",
       secondFileName: "",
-      firstFileContent: "",
-      secondFileContent: "",
-      fullscreenLoading: false,
     };
   },
   methods: {
-    clickFirstFile(e) {
-      if (this.firstFileContent.length > 0) {
-        this.preventDefaultEvent(e);
+    handleExceed() {
+      this.$message.warning("请删除已选文件后再选择文件");
+    },
+    beforeUpload(file) {
+      const fileType = ["csv", "xls", "xlsx", "json"];
+      const isTrue = fileType.some((type) => file.name.split(".")[1] === type);
+      if (!isTrue) {
+        this.$message.warning("上传文件仅支持 xlsx、xls、csv、json 格式！");
+        return false;
       }
+      return true;
     },
-    clickSecondFile(e) {
-      if (this.secondFileContent.length > 0) {
-        this.preventDefaultEvent(e);
-      }
+    handleFileSuccess(response, file) {
+      this.firstFileName = file.name;
     },
-    preventDefaultEvent(e) {
-      e.preventDefault();
-      this.$message({
-        message: "请先删除现有文件，再进行提交",
-        type: "warning",
-        center: true,
-      });
-    },
-    changeFileFirst(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const flag = this.checkFileName(file.name);
-        if (flag) {
-          this.firstFileName = file.name;
-          try {
-            var reader = new FileReader();
-            reader.readAsText(file, "UTF-8"); //这里可以改编码格式，获取文件信息
-            reader.onload = (event) => {
-              this.firstFileContent = event.target.result;
-              console.log(this.firstFileContent);
-              this.$message({
-                message: "成功提交文件",
-                type: "success",
-                center: true,
-              });
-            };
-          } catch (error) {
-            this.$message({
-              message: "浏览器版本过低，请升级版本或者更换浏览器～",
-              type: "warning",
-              center: true,
-            });
-          }
-        } else {
-          this.$message({
-            message: "提交文件格式不正确，请重新提交",
-            type: "error",
-            center: true,
-          });
-        }
-      }
-    },
-    changeFileSecond(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const flag = this.checkFileName(file.name);
-        if (flag) {
-          this.secondFileName = file.name;
-          try {
-            var reader = new FileReader();
-            reader.readAsText(file, "UTF-8"); //这里可以改编码格式，获取文件信息
-            reader.onload = (event) => {
-              this.secondFileContent = event.target.result;
-              console.log(this.secondFileContent);
-              this.$message({
-                message: "成功提交文件",
-                type: "success",
-                center: true,
-              });
-            };
-          } catch (error) {
-            this.$message({
-              message: "浏览器版本过低，请升级版本或者更换浏览器～",
-              type: "warning",
-              center: true,
-            });
-          }
-        } else {
-          this.$message({
-            message: "提交文件格式不正确，请重新提交",
-            type: "error",
-            center: true,
-          });
-        }
-      }
-    },
-    checkFileName(name) {
-      const extsArr = name.split(".");
-      const exts = extsArr[extsArr.length - 1];
-      return ["csv", "xls", "xlsx", "json"].includes(exts);
-    },
-
-    deleteFile(index) {
-      if (index === "first") {
-        this.firstFileContent = "";
-        this.firstFileName = "";
-      } else {
-        this.secondFileName = "";
-        this.secondFileContent = "";
-      }
+    handleFileSuccessSec(response, file) {
+      this.secondFileName = file.name;
     },
     switchCompare(flag) {
       this.isComparing = flag;
     },
     startCompare() {
+      if (this.firstFileName == "" || this.secondFileName == "") {
+        this.$message.warning("必须上传两个文件才可以进行比较～");
+        return;
+      }
       this.switchCompare(true);
       this.fullscreenLoading = true;
-      setTimeout(() => {
+      API.compareFileData({
+        fileNameList: [this.firstFileName, this.secondFileName],
+      }).then((respone) => {
         //这里模拟调用的接口
-        this.switchCompare(false);
+        this.switchCompare(false); //将开始对比按钮loading改为可用
         this.fullscreenLoading = false;
-        this.compareResult = "对比结果";
-      }, 1000);
+        this.compareResult = respone;
+      });
     },
   },
 };
